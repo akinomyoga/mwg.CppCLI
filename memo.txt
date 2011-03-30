@@ -1,0 +1,136 @@
+■予定
+
+fixed で宣言した変数の型名の表示... pin_ptr<unsigned char> でも unsigned char* と表示されてしまう
+　→ VariableData に型情報も一緒に記録する様にすれば良い。
+
+System.String.Concat を適当に表示する事
+文字列のリテラル ... 長くなる場合には "\r\n" 等を含む場所で改行を適当に入れる事にする。
+
+
+コンストラクタ(パラメータ):フィールド(パラメータ){} の形式の出力
++= や /= 等
+キャストの種類を型によって 選択
+
+property 及び event を <backing_store> で宣言している場合に、内容の表示を省略する事
+関数内 static 変数の変な名前を省略して、更に static 宣言を関数内に表示する事
+c++ decorated name の解決
+
+プロパティ名の後に空白を挿入
+WriteDeclaration 形式でその関数への参照も追加出来ないか確かめてみる。
+　クラス宣言の場合にも同様
+クラスに中身がない場合には ; だけに留める
+NativeCppClass は工夫して表示する (ATL や MFC の物は予め情報を保持しておくという手もある)
+　$ArrayType$ は名前から予想される通り、unmanaged な const 配列を格納する為の物。文字列など ("" や L"" など) は皆之になる。
+
+属性に説明を添える
+属性は名前空間で分別
+ドキュメントコメントを表示する
+
+LL と i64 の切替を設定できるようにする
+
+{} 内に一つしか文がない場合には {} で囲まない
+
+■バグ
+・event のアクセサ関数を正しく表示
+・戻り値の型が可笑しい?
+　static bool GetRangeData(unsigned int* range_s,int range_count,int max_value,String^ name);
+　となるべき所が、
+　static ]bool GetRangeData(unsigned int* range_s,int range_count,int max_value,String^ name);
+　と表示される。
+・親クラスの Generic 引数が一々メンバにも表示される
+
+■対応している物 / 修正した物
+
+>delete 構文に戻す機能
+>catch(...) を元に戻す // 現状では catch(***) when (***) 等と表示される
+>演算子の優先順位を以て適当に () を省略する事
+>ローカル変数として、ref class 変数を宣言した場合の宣言
+>　ローカル変数として宣言した ref class 変数のメンバ参照を . にする事
+>ValueType^<modopt <value-class>, modopt IsBoxed> を正しく表示する事 (<value-class>^ と表示)
+>IDelegateCreationExpression
+
+>IEventReferenceExpression の修正 (イベント名が表示される様に)
+>関数参照に説明を付け加える
+
+○ IHasIlOffset インターフェイスが追加されている。
+  それに伴って、既存のインターフェイスにそれが追加され、
+  今迄に書いたクラスにもメンバを追加しなければならなくなった。
+  然し、いったい何の為に追加してあるのか良く分からないので、
+  適当に実装してある。
+  何れは、何の為のインターフェイスか調べて適当な動作をする様に変えなければならない。
+  
+  適当な実装にしてしまった物
+    Reflector.CodeModel.VariableReferenceExpression
+    Reflector.CodeModel.ExpressionStatement
+    Reflector.CodeModel.TryCatchFinallyStatement
+    Reflector.CodeModel.BlockStatement
+    Reflector.CodeModel.AssignStatement
+    mwg.Reflector.CppCli.LabelStatement
+    mwg.Reflector.CppCli.DeleteStatement
+    mwg.Reflector.CppCli.LocalRefVariableStatement
+    mwg.Reflector.CppCli.DefaultConstructionStatement
+    mwg.Reflector.CppCli.StatementAnalyze.CBlockStatementStatement
+    mwg.Reflector.CppCli.TypeRef.CTypeFromClrType
+
+○ IMetadataItem インターフェイスが追加されている。
+  それに伴って、既存のインターフェイスにそれが追加され、
+  今迄に書いたクラスにもメンバを追加しなければならなくなった。
+    
+
+■謎
+・元のソースコードで、UnmanagedType で始まるクラス名を <Module> の場合と同様に省略するようにしていた点
+
+■stackalloc の実装
+・stackalloc T[<expression>]
+  当然ながらコンパイルされない
+・(T*)malloc(sizof(T)*<expression>);
+  何処かに free を書かなければならない
+・(T*)_alloca(sizof(T)*<expression>);
+  スタックオーバーフロー (SEH) の危険性あり
+・(T*)ATL::_ATL_SAFE_ALLOCA(sizeof(T)*<expression>)
+  ATL である
+  この関数を使う前に USES_ATL_SAFE_ALLOCA; と書かなければならない
+  
+■関数ポインタ型の処置
+#warning 関数ポインタのシグニチャ (もっと厳密に)
+・唯の型として参照する場合と、宣言する場合で区別が必要
+　宣言の場合には rettype (*変数名)(argtype)
+　　具体的に宣言の場合というのは...
+　　VariableDeclaration ParameterDeclaration...
+　　フィールドの宣言やプロパティの宣言や関数の宣言も...
+　それ以外の場合には (rettype (*)(argtype))
+・既に crt 等で typedef されている様な物はそれに置き換えるという手もある
+　が、同じシグニチャの物が複数在ったり、
+　良くありそうなシグニチャの物まで特別な名前に変換されたりという問題点が生ずる
+・全て (rettype(*)(argtype)) として表現した方が見やすいのでそれを採用して、
+　見ている人にはそれを使用して貰う
+・設定を可能にする
+　1. 全て ((*)()) で表記する or コンパイルが通る様に T (*name)() の表記も利用する
+　2. シグニチャの名前を登録可能にする。 typedef double (*double_converter)(double); 等
+
+--------------------------------------------------------
+例:
+--------------------------------------------------------
+double (*testfunc2(double(*infunc)(double)))(double){
+	return infunc;
+}
+
+double(*(*testfunc3(void))(double(*)(double)))(double){
+	return &testfunc2;
+}
+--------------------------------------------------------
+typedef double (*dblconv)(double);
+typedef dblconv (*fptr_dblconv)(dblconv);
+
+dblconv testfunc2(dblconv infunc){
+	return infunc;
+}
+
+fptr_dblconv testfunc3(void){
+	return &testfunc2;
+}
+
+■匿名メソッドに関して
+・ローカルクラス内に使用するローカル変数を保持して計算を行うしかない
+　そうしても、引数などに対する参照は匿名メソッド内で使う事が出来ない...
+　(ローカルクラス内に値をコピー?)
