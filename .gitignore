@@ -1,0 +1,11 @@
+# gitignore
+
+*.suo
+*.ncb
+*.user
+bin
+obj
+/UpgradeLog.XML
+/_UpgradeReport_Files
+/_UpgradeReport_Files.lzh
+Thumbs.db
